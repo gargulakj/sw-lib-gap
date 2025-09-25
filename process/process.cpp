@@ -1,11 +1,15 @@
 #include "process.h"
-#include <stdio.h>
+#include <stdexcept>
 
 namespace Gaf {
 
 Process::Process()
 {
-    printf("INIT process \n");
+  //m_epollFd = epoll_create1(0);
+  if (m_epollFd == -1)
+  {
+    std::runtime_error("Cannot create epoll instance!");
+  }
 }
 
 }
