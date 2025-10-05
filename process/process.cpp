@@ -15,18 +15,27 @@ Process::Process()
   }
 }
 
-void Process::RegisterEvent(int fd)
+void Process::RegisterEvent(int fd, Callback cb)
 {
-  struct epoll_event ev;
-  ev.events = EPOLLIN | EPOLLOUT | EPOLLET;
-  ev.data.fd = fd;
-  
-  if (epoll_ctl(m_epollFd, EPOLL_CTL_ADD, fd, &ev) == -1)
+  if(!m_epollCallback.contains(fd))
   {
-    throw std::system_error({errno, std::generic_category()}, "Failed to register file descriptor!");      
-  }  
-  m_epollEvents.emplace_back(epoll_event{});
-  std::cout << "Process::RegisterEvent - done FD: " << fd << "\n";
+    struct epoll_event ev;
+    ev.events = EPOLLIN | EPOLLOUT | EPOLLET;
+    ev.data.fd = fd;
+    
+    if (epoll_ctl(m_epollFd, EPOLL_CTL_ADD, fd, &ev) == -1)
+    {
+      throw std::system_error({errno, std::generic_category()}, "Failed to register file descriptor!");
+    }  
+    m_epollEvents.emplace_back(epoll_event{});
+    m_epollCallback[fd] = cb;
+
+    std::cout << "Process::RegisterEvent - done FD: " << fd << "\n";
+  }
+  else
+  {
+    throw std::runtime_error("File descriptor is already registered!");
+  }
 }
 
 void Process::DeregisterEvent(int fd)
@@ -46,6 +55,12 @@ void Process::Run()
   {
     int eventCount = epoll_wait(m_epollFd, &m_epollEvents[0], m_epollEvents.size(), -1);
 
+    for(int callbackIt = 0; callbackIt < eventCount; callbackIt++)
+    {
+      int fd = m_epollEvents[callbackIt].data.fd;
+      m_epollCallback[fd](fd);
+    }
+    
     if(eventCount == -1)
     {
       throw std::system_error({errno, std::generic_category()}, "epoll_wait error");

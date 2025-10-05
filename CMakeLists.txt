@@ -7,5 +7,6 @@ set(CMAKE_CXX_STANDARD_REQUIRED True)
 
 add_library(Gap STATIC)
 add_subdirectory(process)
+add_subdirectory(net)
 
 install(TARGETS Gap DESTINATION lib)
