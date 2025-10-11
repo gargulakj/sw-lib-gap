@@ -54,10 +54,23 @@ void Process::Run()
   while(m_epollEvents.size() > 0)
   {
     int eventCount = epoll_wait(m_epollFd, &m_epollEvents[0], m_epollEvents.size(), -1);
-
-    for(int callbackIt = 0; callbackIt < eventCount; callbackIt++)
+    
+    for(int eventIt = 0; eventIt < eventCount; eventIt++)
     {
-      int fd = m_epollEvents[callbackIt].data.fd;
+      struct epoll_event& event = m_epollEvents[eventIt];
+      // Ready to read
+      if((event.events & EPOLLIN) == EPOLLIN)
+      {
+      }
+      // Ready to write
+      if((event.events & EPOLLOUT) == EPOLLOUT)
+      {
+      }
+      // Error
+      else
+      {
+      }
+      int fd = event.data.fd;
       m_epollCallback[fd](fd);
     }
     
