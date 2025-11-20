@@ -11,8 +11,9 @@ class TcpClient
     ~TcpClient();
     int Init();
     void Connect(Endpoint endpoint);
+    void Close();
     void onConnected();
-
+    
   private:
     int m_clientSocket {-1};
 };

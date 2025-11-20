@@ -10,6 +10,7 @@ class TcpServer
   public:
     ~TcpServer();
     int Init();
+    void Close();
     void Open(Endpoint endpoint);
     void onConnected();
 

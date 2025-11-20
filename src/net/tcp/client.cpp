@@ -3,6 +3,7 @@
 #include <netinet/in.h>
 #include <sys/socket.h>
 #include <unistd.h>
+#include "log.h"
 
 namespace Gap {
 
@@ -37,7 +38,24 @@ void TcpClient::Connect(Endpoint endpoint)
   if(connect(m_clientSocket, (struct sockaddr*)&serverAddress, sizeof(serverAddress)) == -1)
   {
     throw std::system_error({errno, std::generic_category()}, std::string("Cannot connect to server ") + endpoint.ToString());
-  }  
+  }
+  else
+  {
+    log.Info("Connected to server " + endpoint.ToString());
+  }
+}
+
+void TcpClient::Close()
+{
+  if(shutdown(m_clientSocket, SHUT_RDWR) == -1)
+  {
+    throw std::system_error({errno, std::generic_category()}, std::string("Cannot close socket "));
+  }
+  else
+  {
+    log.Info("Disconnected from server");
+  }
+  
 }
 
 void TcpClient::onConnected()

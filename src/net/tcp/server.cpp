@@ -3,14 +3,21 @@
 #include <netinet/in.h>
 #include <sys/socket.h>
 #include <unistd.h>
+#include "log.h"
 
 namespace Gap {
 
 TcpServer::~TcpServer()
 {
+  Close();
+}
+
+void TcpServer::Close()
+{
   if(m_serverSocket != -1)
   {
     close(m_serverSocket);
+    m_serverSocket = -1;
   }
 }
 
@@ -48,7 +55,7 @@ void TcpServer::Open(Endpoint endpoint)
     }
     else
     {
-      std::cout << "Server is listening on " << endpoint.ToString() << "\n";
+      log.Info("Server is listening on " + endpoint.ToString());
     }
   }
 }
