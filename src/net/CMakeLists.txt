@@ -3,6 +3,8 @@ target_sources(Gap PRIVATE
     tcp/server.h
     tcp/client.cpp
     tcp/client.h
+    tcp/socket.cpp
+    tcp/socket.h
     utils/endpoint.cpp
     utils/endpoint.h
 )

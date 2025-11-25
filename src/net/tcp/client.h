@@ -2,20 +2,28 @@
 #define GAP_TCP_CLIENT_H
 
 #include "utils/endpoint.h"
+#include "socket.h"
+#include "event_provider.h"
 
 namespace Gap {
 
 class TcpClient
 {
   public:
+    TcpClient(EventProvider& eventProvider);
     ~TcpClient();
-    int Init();
+
     void Connect(Endpoint endpoint);
     void Close();
-    void onConnected();
     
   private:
-    int m_clientSocket {-1};
+    EventProvider& m_eventProvider;
+    Socket m_socket;
+
+    void onSocketError();
+    void onSocketReadyRead();
+    void onSocketReadyWrite();
+  
 };
 
 }

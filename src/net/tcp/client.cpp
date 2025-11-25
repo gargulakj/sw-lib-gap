@@ -7,60 +7,54 @@
 
 namespace Gap {
 
+TcpClient::TcpClient(EventProvider& eventProvider):
+  m_eventProvider(eventProvider)
+{
+  m_socket.SetOnError([this](){onSocketError();});
+  m_socket.SetOnReadyRead([this](){onSocketReadyRead();});
+  m_socket.SetOnReadyWrite([this](){onSocketReadyWrite();});
+
+}
+
 TcpClient::~TcpClient()
 {
-  if(m_clientSocket != -1)
+  try
   {
-    close(m_clientSocket);
+    Close();
   }
+  catch(const std::exception& e)
+  {
+  } 
 }
 
-int TcpClient::Init()
-{
-  m_clientSocket = socket(AF_INET, SOCK_STREAM , 0);
-
-  if(m_clientSocket == -1)
-  {
-    throw std::system_error({errno, std::generic_category()}, std::string("Cannot create client socket!"));  
-  }
-
-  return m_clientSocket;
-}
 
 void TcpClient::Connect(Endpoint endpoint)
 {
-  // Specifying the address
-  sockaddr_in serverAddress;
-  serverAddress.sin_family = AF_INET;
-  serverAddress.sin_port = htons(endpoint.Port());
-  serverAddress.sin_addr.s_addr = endpoint.IP().Get();
-
-  if(connect(m_clientSocket, (struct sockaddr*)&serverAddress, sizeof(serverAddress)) == -1)
-  {
-    throw std::system_error({errno, std::generic_category()}, std::string("Cannot connect to server ") + endpoint.ToString());
-  }
-  else
-  {
-    log.Info("Connected to server " + endpoint.ToString());
-  }
+  m_socket.Connect(endpoint);
+  m_eventProvider.AddConsumer(&m_socket);
 }
 
 void TcpClient::Close()
 {
-  if(shutdown(m_clientSocket, SHUT_RDWR) == -1)
-  {
-    throw std::system_error({errno, std::generic_category()}, std::string("Cannot close socket "));
-  }
-  else
-  {
-    log.Info("Disconnected from server");
-  }
-  
+  m_eventProvider.RemoveConsumer(&m_socket);
+  m_socket.Close();
 }
 
-void TcpClient::onConnected()
+void TcpClient::onSocketError()
 {
-  std::cout << "connected \n";
+  log.Info("TcpClient socket error!");
+
+}
+
+void TcpClient::onSocketReadyRead()
+{
+  log.Info("TcpClient::onSocketReadyRead");
+}
+
+void TcpClient::onSocketReadyWrite()
+{
+  log.Info("TcpClient::onSocketReadyWrite");
+
 }
 
 }

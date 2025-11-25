@@ -2,9 +2,10 @@
 #include <system_error>
 #include <errno.h>
 #include <iostream>
-#include <sys/signalfd.h>
 #include <sys/epoll.h>
+#include <unistd.h>
 #include "process.h"
+#include "flags.h"
 #include "log.h"
 
 namespace Gap {
@@ -13,27 +14,6 @@ Process::Process()
 {
   // Store thread ID
   m_threadId = pthread_self();
-
-  // Fill structure with signals which are handle by FD.
-  sigset_t signals;
-  sigemptyset(&signals);
-  for(int sig : m_exitSignals)
-  {
-    sigaddset(&signals, sig);
-  }
-
-  // Block signals which is handle by FD
-  if (sigprocmask(SIG_BLOCK, &signals, NULL) == -1)
-  {
-    throw std::system_error({errno, std::generic_category()}, "Cannot block signals handled by FD!");
-  }
-
-  // Create FD for signal handling.
-  m_exitSignalFd = signalfd(-1, &signals, SFD_NONBLOCK);
-  if (m_exitSignalFd == -1)
-  {
-    throw std::system_error({errno, std::generic_category()}, "Cannot create FD for signal handling!");
-  }
  
   // Epoll create
   m_epollFd = epoll_create1(0);
@@ -41,9 +21,9 @@ Process::Process()
   {
     throw std::system_error({errno, std::generic_category()}, "Cannot create epoll instance!");
   }
+  
+  RegisterEvent(m_exitSignal.GetFd());
 
-  // Register exit signal
-  RegisterEvent(m_exitSignalFd, [this](int fd, Event evn){ onTerminate(fd, evn); });
 }
 
 Process::~Process()
@@ -52,55 +32,6 @@ Process::~Process()
   {
     close(m_epollFd);
   }
-  if(m_exitSignalFd != -1)
-  {
-    close(m_exitSignalFd);
-  }
-}
-
-void Process::onTerminate(int fd, Event event)
-{
-  m_run = false;
-  onTerminate();
-}
-
-void Process::RegisterEvent(int fd, Callback cb)
-{
-  if(!m_epollCallback.contains(fd))
-  {
-    struct epoll_event ev;
-    ev.events = EPOLLIN | EPOLLOUT | EPOLLET;
-    ev.data.fd = fd;
-
-    // Register epol event
-    if (epoll_ctl(m_epollFd, EPOLL_CTL_ADD, fd, &ev) == -1)
-    {
-      throw std::system_error({errno, std::generic_category()}, "Failed to register file descriptor!");
-    }
-    // Emplace next structure for getting event.
-    m_epollEvents.emplace_back(epoll_event{});
-    // Store callback function
-    m_epollCallback[fd] = cb;
-
-    log.Info("Process::RegisterEvent for fd: " + std::to_string(fd));
-  }
-  else
-  {
-    throw std::runtime_error("File descriptor is already registered!");
-  }
-}
-
-void Process::DeregisterEvent(int fd)
-{
-  // Deregister epol event.
-  if (epoll_ctl(m_epollFd, EPOLL_CTL_DEL, fd, nullptr) == -1)
-  {
-    throw std::system_error({errno, std::generic_category()}, "Failed to deregister file descriptor!");
-  }
-  // Remove callback funtion
-  m_epollCallback.erase(fd);
-  // Remove structure for getting event.
-  m_epollEvents.pop_back();  
 }
 
 void Process::Run()
@@ -122,33 +53,67 @@ void Process::Run()
 
       // Get stored data
       int fd = event.data.fd;
-
+      
       log.Info("EPOLL event fd: " + std::to_string(fd));
-      // Callback is there?
-      if(m_epollCallback.contains(fd))
-      {
-        // Error
-        if((event.events & (EPOLLHUP | EPOLLERR)) > 0)
+      
+      if(fd != m_exitSignal.GetFd())
+      {        
+        try
         {
-          m_epollCallback[fd](fd, Event::Error);
+          if(m_eventProvider != nullptr)
+          {
+            // Consumer is there?
+            EventConsumer* consumer = m_eventProvider->m_eventConsumer.at(fd);
+            if(consumer != nullptr)
+            {
+              EventFlags events;
+
+              // Error
+              if((event.events & (EPOLLHUP | EPOLLERR)) > 0)
+              {
+                events.Set(EventFlag::Error);
+              }        
+              // Ready to read
+              if((event.events & EPOLLIN) == EPOLLIN)
+              {
+                events.Set(EventFlag::ReadyRead);
+              }
+              // Ready to write
+              if((event.events & EPOLLOUT) == EPOLLOUT)
+              {
+                events.Set(EventFlag::ReadyWrite);
+              }
+              
+              consumer->onEvent(events);      
+            }
+            else 
+            {
+              throw std::runtime_error("Cannot find epoll consumer");
+            }
+          }
+          else 
+          {
+            throw std::runtime_error("Event provider is not set!");
+          }
+        }
+        catch(const std::exception& e)
+        {
+          throw std::runtime_error("Cannot find epoll consumer");
         }        
-        // Ready to read
-        if((event.events & EPOLLIN) == EPOLLIN)
-        {
-          m_epollCallback[fd](fd, Event::ReadyRead);
-        }
-        // Ready to write
-        if((event.events & EPOLLOUT) == EPOLLOUT)
-        {
-          m_epollCallback[fd](fd, Event::ReadyWrite);
-        }
-      }      
+      }
     }
     
     // Epoll error
     if(eventCount == -1)
     {
-      throw std::system_error({errno, std::generic_category()}, "epoll_wait error");
+      if(m_epollEvents.size() == 0)
+      {
+        throw std::runtime_error("No epoll consumers!");
+      }
+      else
+      {      
+        throw std::system_error({errno, std::generic_category()}, "epoll_wait error");
+      }
     }
   }
   
@@ -157,8 +122,67 @@ void Process::Run()
 
 void Process::Terminate()
 {
-  log.Info("Application terminated");
-  pthread_kill(m_threadId, SIGINT);
+  log.Info("Application terminate requested");
+  m_run = false;
+  
+  if(m_threadId != 0)
+  {
+    pthread_kill(m_threadId, SIGQUIT);
+    m_threadId = 0;
+  }
+}
+
+void Process::SetEventProvider(EventProvider* provider)
+{
+  UnsetEventProvider();
+
+  if(provider != nullptr)
+  {
+    m_eventProvider = provider;
+    m_eventProvider->onConsumerAdd = [this](int fd){RegisterEvent(fd);};
+    m_eventProvider->onConsumerRemove = [this](int fd){DeregisterEvent(fd);};
+  }
+}
+
+void Process::UnsetEventProvider()
+{
+  if(m_eventProvider != nullptr)
+  {
+    for(auto const& item : m_eventProvider->m_eventConsumer)
+    {
+      DeregisterEvent(item.first);
+    }
+  }
+}
+
+void Process::RegisterEvent(int fd)
+{  
+  struct epoll_event ev;
+  ev.events = EPOLLIN | EPOLLOUT | EPOLLET;
+  ev.data.fd = fd;
+
+  // Register epol event
+  if (epoll_ctl(m_epollFd, EPOLL_CTL_ADD, fd, &ev) == -1)
+  {
+    throw std::system_error({errno, std::generic_category()}, "Failed to register file descriptor!");
+  }
+  // Emplace next structure for getting event.
+  m_epollEvents.emplace_back(epoll_event{});
+  
+  log.Info("Process::RegisterEvent for fd: " + std::to_string(fd));
+
+}
+
+void Process::DeregisterEvent(int fd)
+{
+  // Deregister epol event.
+  if (epoll_ctl(m_epollFd, EPOLL_CTL_DEL, fd, nullptr) == -1)
+  {
+    throw std::system_error({errno, std::generic_category()}, "Failed to deregister file descriptor!");
+  }
+
+  // Remove structure for getting event.
+  m_epollEvents.pop_back();  
 }
 
 }

@@ -1,68 +1,61 @@
 #include "server.h"
-#include <iostream>
-#include <netinet/in.h>
-#include <sys/socket.h>
-#include <unistd.h>
 #include "log.h"
+
+
+
+#include <unistd.h>
 
 namespace Gap {
 
+TcpServer::TcpServer(EventProvider& eventProvider):
+  m_eventProvider(eventProvider)
+{
+  m_serverSocket.SetOnError([this](){onServerSocketError();});
+  m_serverSocket.SetOnReadyRead([this](){onServerSocketReadyRead();});
+  m_serverSocket.SetOnReadyWrite([this](){onServerSocketReadyWrite();});
+
+}
+
 TcpServer::~TcpServer()
 {
-  Close();
+  try
+  {
+    Close();
+  }
+  catch(const std::exception& e)
+  {
+  }  
 }
 
 void TcpServer::Close()
 {
-  if(m_serverSocket != -1)
-  {
-    close(m_serverSocket);
-    m_serverSocket = -1;
-  }
-}
-
-int TcpServer::Init()
-{
-  m_serverSocket = socket(AF_INET, SOCK_STREAM , 0);
-
-  if(m_serverSocket == -1)
-  {
-    throw std::system_error({errno, std::generic_category()}, std::string("Cannot create server socket!"));  
-  }
-
-  return m_serverSocket;
+  m_eventProvider.RemoveConsumer(&m_serverSocket);
+  m_serverSocket.Close();
 }
 
 void TcpServer::Open(Endpoint endpoint)
 {
-  // Specifying the address
-  sockaddr_in serverAddress;
-  serverAddress.sin_family = AF_INET;
-  serverAddress.sin_port = htons(endpoint.Port());
-  serverAddress.sin_addr.s_addr = endpoint.IP().Get();
-  
-  // Binding socket.
-  if(bind(m_serverSocket, (struct sockaddr*)&serverAddress, sizeof(serverAddress)) == -1)
-  {
-    throw std::system_error({errno, std::generic_category()}, std::string("Cannot bind address ") + endpoint.ToString());    
-  }
-  else  
-  {
-    // Set socket listening
-    if(listen(m_serverSocket, 64) == -1)
-    {
-      throw std::system_error({errno, std::generic_category()}, std::string("Cannot set socket listening ") + endpoint.ToString());
-    }
-    else
-    {
-      log.Info("Server is listening on " + endpoint.ToString());
-    }
-  }
+  m_serverSocket.Listen(endpoint);
+  m_eventProvider.AddConsumer(&m_serverSocket);
 }
 
-void TcpServer::onConnected()
+void TcpServer::onServerSocketError()
 {
-  std::cout << "connected \n";
+  log.Info("Server socket error!");
+
+}
+
+void TcpServer::onServerSocketReadyRead()
+{
+  log.Info("TcpServer::onServerSocketReadyRead");
+  m_serverSocket.Accept();
+  
+}
+
+void TcpServer::onServerSocketReadyWrite()
+{
+  log.Info("TcpServer::onServerSocketReadyWrite");
+
 }
 
 }
