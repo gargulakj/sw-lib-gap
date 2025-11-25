@@ -1,4 +1,5 @@
 #include "process.h"
+#include "signal_handler.h"
 #include "tcp/server.h"
 #include "tcp/client.h"
 
@@ -6,17 +7,20 @@ class ServerApp : public Gap::Process
 {
   public:
     void Init();
+    
   private:
-    void onSocketEvent(int fd, Event evn);
-    Gap::TcpServer m_tcpServer;
+    Gap::EventProvider m_eventProvider;
+    Gap::TcpServer m_tcpServer {m_eventProvider};
+
 };
 
 class ClientApp : public Gap::Process
 {
   public:
     void Init();
-    virtual void onTerminate() override;
+
   private:
-    void onSocketEvent(int fd, Event evn);
-    Gap::TcpClient m_tcpClient;
+    Gap::EventProvider m_eventProvider;
+    Gap::TcpClient m_tcpClient {m_eventProvider};
+    
 };

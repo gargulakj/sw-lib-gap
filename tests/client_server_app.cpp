@@ -6,40 +6,26 @@
 std::unique_ptr<ServerApp> serverApp;
 std::unique_ptr<ClientApp> clientApp;
 
+
 void ServerApp::Init()
 {  
   Gap::log.Info("Server init");  
   
-  int fd = m_tcpServer.Init();
-  RegisterEvent(fd, [this](int fd, Event evn){ onSocketEvent(fd, evn); });
-  m_tcpServer.Open(Gap::Endpoint{{"127.0.0.1"}, 10000});
+  SetEventProvider(&m_eventProvider);
+  m_tcpServer.Open(Gap::Endpoint{{"127.0.0.1"}, 10004});
   
 }
-void ServerApp::onSocketEvent(int fd, Event evn)
-{
-  Gap::log.Info("ServerApp::onSocketEvent " + std::to_string(evn));  
 
-}
 
 void ClientApp::Init()
 {  
-  Gap::log.Info("Client init");  
+  Gap::log.Info("Client init");
+  SetEventProvider(&m_eventProvider);
   
-  int fd = m_tcpClient.Init();
-  RegisterEvent(fd, [this](int fd, Event evn){ onSocketEvent(fd, evn); });
-  m_tcpClient.Connect(Gap::Endpoint{{"127.0.0.1"}, 10000});
+  m_tcpClient.Connect(Gap::Endpoint{{"127.0.0.1"}, 10004});
+  //m_tcpClient.Connect(Gap::Endpoint{{"45.79.112.203"}, 4242});
   
-}
-
-void ClientApp::onTerminate()
-{
-  m_tcpClient.Close();
-}
-
-void ClientApp::onSocketEvent(int fd, Event evn)
-{
-  Gap::log.Info("ClientApp::onSocketEvent " + std::to_string(evn));  
-
+  
 }
 
 static void ServerLoop()
@@ -61,7 +47,7 @@ static void ClientLoop()
 
 static void Terminate()
 {  
-  sleep(5);
+  sleep(10);
   clientApp->Terminate();
   serverApp->Terminate();
 }
@@ -69,12 +55,13 @@ static void Terminate()
 
 
 // Test connection client to server.
-TEST(ClientServer, Connection) {  
-  std::thread srvThread(ServerLoop);
+TEST(Process, ClientServer) {  
+  std::thread srvThread(ServerLoop);  
   sleep(1);
   std::thread clientThread(ClientLoop);
   sleep(1);
   std::thread termThread(Terminate);
+
   clientThread.join();
   srvThread.join();
   termThread.join();
