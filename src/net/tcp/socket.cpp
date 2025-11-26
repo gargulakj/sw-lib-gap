@@ -57,14 +57,6 @@ void Socket::onEvent(EventFlags events)
   }
 }
 
-void Socket::Close()
-{
-  if(m_fd != -1)
-  {
-    close(m_fd);
-    m_fd = -1;
-  }
-}
 
 
 void Socket::Listen(Endpoint endpoint)
@@ -120,6 +112,48 @@ void Socket::Connect(Endpoint endpoint)
       throw std::system_error({errno, std::generic_category()}, std::string("Socket::Cannot connect to server ") + endpoint.ToString());
     }
   }
+}
+
+
+void Socket::Close()
+{
+  if(m_fd != -1)
+  {
+    close(m_fd);
+    m_fd = -1;
+  }
+}
+
+std::size_t Socket::ReadData(std::span<std::byte> buffer)
+{
+  std::size_t retVal = 0;
+  ssize_t received = recv(m_fd, buffer.data(), buffer.size(), 0);
+  if(received >= 0)
+  {
+    retVal = static_cast<std::size_t>(received);
+  }
+  else if(errno != EAGAIN)
+  {
+    throw std::system_error({errno, std::generic_category()}, std::string("Socket::ReadData error!"));
+  }
+  
+  return retVal;
+}
+
+std::size_t Socket::SendData(std::span<std::byte> buffer)
+{
+  std::size_t retVal = 0;
+  ssize_t sended = send(m_fd, buffer.data(), buffer.size(), 0);
+  if(sended >= 0)
+  {
+    retVal = static_cast<std::size_t>(sended);
+  }
+  else if(errno != EAGAIN)
+  {
+    throw std::system_error({errno, std::generic_category()}, std::string("Socket::SendData error!"));
+  }
+
+  return retVal;
 }
 
 void Socket::SetOnReadyRead(SocketCallback callback)

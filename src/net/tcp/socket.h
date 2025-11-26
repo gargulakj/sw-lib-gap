@@ -2,6 +2,7 @@
 #define SOCKET_H
 
 #include <functional>
+#include <span>
 #include "event_consumer.h"
 #include "utils/endpoint.h"
 
@@ -19,6 +20,13 @@ class Socket : public EventConsumer {
     void Accept();
     void Connect(Endpoint endpoint);
     void Close();
+
+    // If the amount of data read equals the buffer size, it indicates that more
+    // data is available, so the read operation should be repeated immediately.
+    std::size_t ReadData(std::span<std::byte> buffer);
+    
+    // If not all data from the buffer was sent, retry the call after some delay.
+    std::size_t SendData(std::span<std::byte> buffer);
 
     void SetOnReadyRead(SocketCallback callback);
     void SetOnReadyWrite(SocketCallback callback);
