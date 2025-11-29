@@ -14,10 +14,10 @@ class TcpServer
     ~TcpServer();
     
     void Close();
-    void Open(Endpoint endpoint);
+    void Open(IPv4Endpoint endpoint);
 
   private:
-    void onServerSocketError();
+    void onServerSocketError(int errCode);
     void onServerSocketReadyRead();
     void onServerSocketReadyWrite();
 

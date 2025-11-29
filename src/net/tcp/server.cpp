@@ -1,16 +1,13 @@
+#include <system_error>
 #include "server.h"
 #include "log.h"
-
-
-
-#include <unistd.h>
 
 namespace Gap {
 
 TcpServer::TcpServer(EventProvider& eventProvider):
   m_eventProvider(eventProvider)
 {
-  m_serverSocket.SetOnError([this](){onServerSocketError();});
+  m_serverSocket.SetOnError([this](int errCode){onServerSocketError(errCode);});
   m_serverSocket.SetOnReadyRead([this](){onServerSocketReadyRead();});
   m_serverSocket.SetOnReadyWrite([this](){onServerSocketReadyWrite();});
 
@@ -33,22 +30,25 @@ void TcpServer::Close()
   m_serverSocket.Close();
 }
 
-void TcpServer::Open(Endpoint endpoint)
+void TcpServer::Open(IPv4Endpoint endpoint)
 {
   m_serverSocket.Listen(endpoint);
   m_eventProvider.AddConsumer(&m_serverSocket);
 }
 
-void TcpServer::onServerSocketError()
+void TcpServer::onServerSocketError(int errCode)
 {
-  log.Info("Server socket error!");
+  std::error_code err {errCode, std::generic_category()};  
+  log.Info("Server socket error! " + err.message());  
 
 }
 
 void TcpServer::onServerSocketReadyRead()
 {
   log.Info("TcpServer::onServerSocketReadyRead");
-  m_serverSocket.Accept();
+  IPv4Endpoint endpoint;
+  m_serverSocket.Accept(endpoint);
+  log.Info("Incoming connection from " + endpoint.ToString());
   
 }
 
