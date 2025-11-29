@@ -6,23 +6,38 @@
 std::unique_ptr<ServerApp> serverApp;
 std::unique_ptr<ClientApp> clientApp;
 
+TcpClient::TcpClient(Gap::EventProvider& eventProvider):
+  TcpConnection(eventProvider)
+{
+
+}
+void TcpClient::onError(int errCode) 
+{
+
+}
+void TcpClient::onReadyRead()
+{
+
+}
+void TcpClient::onReadyWrite() 
+{
+
+}
 
 void ServerApp::Init()
 {  
   Gap::log.Info("Server init");  
   
   SetEventProvider(&m_eventProvider);
-  m_tcpServer.Open(Gap::Endpoint{{"127.0.0.1"}, 10004});
+  m_tcpServer.Open(Gap::IPv4Endpoint{{"127.0.0.1"}, 10004});
   
 }
-
-
 void ClientApp::Init()
 {  
   Gap::log.Info("Client init");
   SetEventProvider(&m_eventProvider);
   
-  m_tcpClient.Connect(Gap::Endpoint{{"127.0.0.1"}, 10004});
+  m_tcpClient.Connect(Gap::IPv4Endpoint{{"127.0.0.1"}, 10004});
   //m_tcpClient.Connect(Gap::Endpoint{{"45.79.112.203"}, 4242});
   
   
@@ -47,7 +62,7 @@ static void ClientLoop()
 
 static void Terminate()
 {  
-  sleep(10);
+  sleep(100);
   clientApp->Terminate();
   serverApp->Terminate();
 }
