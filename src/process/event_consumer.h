@@ -1,5 +1,5 @@
-#ifndef EVENT_CONSUMER_H
-#define EVENT_CONSUMER_H
+#ifndef GAP_EVENT_CONSUMER_H
+#define GAP_EVENT_CONSUMER_H
 
 #include <functional>
 #include "flags.h"

@@ -1,5 +1,5 @@
-#ifndef EVENT_PROVIDER_H
-#define EVENT_PROVIDER_H
+#ifndef GAP_EVENT_PROVIDER_H
+#define GAP_EVENT_PROVIDER_H
 
 #include <functional>
 #include <map>
