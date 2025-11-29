@@ -3,6 +3,10 @@
 
 namespace Gap {
 
+IPAddress::IPAddress(in_addr_t address)
+{
+    m_addr = address;
+}
 IPAddress::IPAddress(std::string address)
 {
     m_addr = inet_addr(address.data());
@@ -20,24 +24,24 @@ std::string IPAddress::ToString() const
     return std::string(inet_ntoa(address));
 }
 
-Endpoint::Endpoint(IPAddress address, uint16_t port) :
+IPv4Endpoint::IPv4Endpoint(IPAddress address, uint16_t port) :
     m_ipAddress(address),
     m_port(port)
 {
 
 }
 
-IPAddress Endpoint::IP() const 
+IPAddress IPv4Endpoint::IP() const 
 {
     return m_ipAddress;
 }
 
-uint16_t Endpoint::Port() const 
+uint16_t IPv4Endpoint::Port() const 
 {
     return m_port;
 }
 
-std::string Endpoint::ToString() const
+std::string IPv4Endpoint::ToString() const
 {
     std::string endpointStr(m_ipAddress.ToString());
     endpointStr += ":";
