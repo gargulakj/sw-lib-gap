@@ -1,5 +1,5 @@
-#ifndef SIGNAL_HANDLER_H
-#define SIGNAL_HANDLER_H
+#ifndef GAP_SIGNAL_HANDLER_H
+#define GAP_SIGNAL_HANDLER_H
 
 #include <vector>
 #include "event_consumer.h"

@@ -88,17 +88,17 @@ void Process::Run()
             }
             else 
             {
-              throw std::runtime_error("Cannot find epoll consumer");
+              throw std::runtime_error("Process::Cannot find epoll consumer");
             }
           }
           else 
           {
-            throw std::runtime_error("Event provider is not set!");
+            throw std::runtime_error("Process::Event provider is not set!");
           }
         }
         catch(const std::exception& e)
         {
-          throw std::runtime_error("Cannot find epoll consumer");
+          throw std::runtime_error("Process::Cannot find epoll consumer");
         }        
       }
     }
@@ -108,7 +108,7 @@ void Process::Run()
     {
       if(m_epollEvents.size() == 0)
       {
-        throw std::runtime_error("No epoll consumers!");
+        throw std::runtime_error("Process::No epoll consumers!");
       }
       else
       {      

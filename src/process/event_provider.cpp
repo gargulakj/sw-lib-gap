@@ -16,7 +16,7 @@ void EventProvider::AddConsumer(EventConsumer* consumer)
     }
     else
     {
-      throw std::runtime_error("Event consumer is already registered!");
+      throw std::runtime_error("EventProvider::Event consumer is already registered!");
     }
   }
 }
@@ -33,7 +33,7 @@ void EventProvider::RemoveConsumer(EventConsumer* consumer)
     }
     else
     {
-      throw std::runtime_error("Event consumer is already removed!");
+      throw std::runtime_error("EventProvider::Event consumer is already removed!");
     }
   }
 }
